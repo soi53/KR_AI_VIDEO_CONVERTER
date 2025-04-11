@@ -1,0 +1,27 @@
+# 웹 애플리케이션 프레임워크
+streamlit==1.32.2
+
+# 환경 변수 관리
+python-dotenv==1.0.0
+
+# 비디오 처리
+ffmpeg-python==0.2.0
+
+# OpenAI API 클라이언트
+openai==1.16.2
+
+# Docker SDK (whisperX 컨테이너 제어용)
+docker==7.0.0
+
+# TTS (텍스트 음성 변환)
+TTS==0.22.0
+
+# 유틸리티
+numpy==1.26.2
+pydantic==2.5.2
+pandas==1.4.4
+requests==2.31.0
+uuid==1.30
+
+# 로깅 및 모니터링
+loguru==0.7.2 

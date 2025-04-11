@@ -1,0 +1,62 @@
+{
+  "en": [
+    {
+      "name": "male_1",
+      "gender": "male",
+      "description": "영어 남성 화자 1"
+    },
+    {
+      "name": "female_1",
+      "gender": "female",
+      "description": "영어 여성 화자 1"
+    }
+  ],
+  "ja": [
+    {
+      "name": "male_1",
+      "gender": "male",
+      "description": "일본어 남성 화자 1"
+    },
+    {
+      "name": "female_1",
+      "gender": "female",
+      "description": "일본어 여성 화자 1"
+    }
+  ],
+  "zh": [
+    {
+      "name": "male_1",
+      "gender": "male",
+      "description": "중국어 남성 화자 1"
+    },
+    {
+      "name": "female_1",
+      "gender": "female",
+      "description": "중국어 여성 화자 1"
+    }
+  ],
+  "de": [
+    {
+      "name": "male_1",
+      "gender": "male",
+      "description": "독일어 남성 화자 1"
+    },
+    {
+      "name": "female_1",
+      "gender": "female",
+      "description": "독일어 여성 화자 1"
+    }
+  ],
+  "id": [
+    {
+      "name": "male_1",
+      "gender": "male",
+      "description": "인도네시아어 남성 화자 1"
+    },
+    {
+      "name": "female_1",
+      "gender": "female",
+      "description": "인도네시아어 여성 화자 1"
+    }
+  ]
+} 

@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    container_name: video_translator_app
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./app:/app
+      - ./data:/data
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - video_translator_network
+    depends_on:
+      - whisperx
+
+  whisperx:
+    image: onerahmet/openai-whisper-asr-webservice:latest-gpu
+    container_name: whisperx_service
+    environment:
+      - ASR_MODEL=large-v3
+      - ASR_ENGINE=whisperx
+    volumes:
+      - ./data:/data
+    networks:
+      - video_translator_network
+    restart: unless-stopped
+    # 주의: GPU 사용을 위한 추가 설정
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+networks:
+  video_translator_network:
+    driver: bridge 
