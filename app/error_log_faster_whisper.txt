@@ -1,0 +1,25 @@
+### OpenAI Whisper 마이그레이션 로그
+
+- **이전 문제 설명**: `faster-whisper` 라이브러리 설치 및 사용 중 호환성 문제 발생. Python 버전과 맞지 않아 설치가 중단되었으며, 이로 인해 음성 인식(STT) 기능이 작동하지 않음. 또한, PyTorch와 Streamlit 간의 초기화 충돌로 인해 `tuple index out of range` 오류와 `torch.classes` 경고가 발생.
+
+- **발생한 오류 메시지**:
+  - `tuple index out of range` 오류
+  - `Examining the path of torch.classes raised: Tried to instantiate class '__path__._path', but it does not exist!` 경고
+  - `ERROR: Ignored the following versions that require a different python version: 0.0.10.2 Requires-Python...` (설치 중 Python 버전 호환성 오류)
+
+- **해결 방법**:
+  **라이브러리 교체**: `faster-whisper` 대신 공식 `openai-whisper` 라이브러리로 대체하여 설치 및 호환성 문제를 해결함
+
+- **변경된 내용**:
+  1. **라이브러리 교체**: `faster-whisper==0.10.0`에서 `openai-whisper==20240930`로 교체
+  2. **Docker 환경 변경**: Dockerfile에 Rust 및 Cargo 설치 추가 (tiktoken 의존성)
+  3. **API 호출 방식 변경**: OpenAI Whisper API 구조에 맞게 코드 변경
+  4. **구성 파일 업데이트**: .env 및 .env.example에서 불필요한 설정 제거 및 변경
+  5. **문서 업데이트**: README.md 업데이트 및 기타 문서 참조 변경
+
+- **참고 사항**:
+  - OpenAI Whisper는 CPU에서도 충분히 작동하나 GPU가 있으면 성능이 더 향상됨
+  - 대형 모델(large)은 약 10GB의 RAM을 요구할 수 있으니 리소스 제약이 있다면 더 작은 모델(medium, small, base) 사용 고려
+  - OpenAI Whisper는 영어 전용 모델(*.en)과 다국어 모델을 제공하며, 한국어의 경우 다국어 모델 사용 필요
+
+이 마이그레이션을 통해 기존의 호환성 문제를 해결하고 더 안정적인 음성 인식 기능을 제공할 수 있을 것입니다. 

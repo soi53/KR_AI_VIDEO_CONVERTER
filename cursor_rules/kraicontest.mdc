@@ -1,0 +1,55 @@
+# KR AI Video Converter 프로젝트 개요
+
+## 목적
+회사 내 동영상 자료(전략회의, 교육 등)를 다양한 언어로 번역 및 더빙하여 전 세계 직원들이 언어 장벽 없이 시청할 수 있도록 지원하는 내부용 웹 애플리케이션입니다.
+
+## 기술 스택
+- **STT(Speech-to-Text)**: OpenAI Whisper
+- **번역**: OpenAI GPT-4o 
+- **TTS(Text-to-Speech)**: XTTS-v2
+- **웹 프레임워크**: Streamlit
+- **백엔드 API**: FastAPI
+- **컨테이너화**: Docker, Docker Compose
+- **비디오 처리**: FFmpeg
+
+## 주요 기능
+- 동영상 업로드 및 자막 추출
+- 자막 편집 및 번역
+- 번역된 자막으로 음성 합성
+- 최종 더빙된 동영상 생성
+
+## 지원 언어
+- 소스: 한국어(Korean)
+- 타겟: 영어(English), 일본어(Japanese), 중국어(Chinese), 독일어(German), 인도네시아어(Indonesian)
+
+## 시스템 요구사항
+- Docker 및 Docker Compose
+- 최소 8GB RAM (대형 모델 사용 시 10GB 이상 권장)
+- OpenAI API 키
+- 인터넷 연결 (모델 다운로드 및 API 호출용)
+
+## 최신 주요 변경사항 (2025-04-14)
+- faster-whisper에서 OpenAI Whisper로 마이그레이션 완료
+  - Python 버전 호환성 문제 및 초기화 충돌 해결
+  - 더 안정적인 자막 추출 기능 구현
+- 파일 크기 제한: 500MB (안정성 확보 목적)
+
+## 설치 및 실행
+1. 환경 변수 설정 (.env 파일 구성)
+2. Docker 컨테이너 빌드 및 실행
+   ```bash
+   docker-compose up -d
+   ```
+3. 웹 인터페이스 접속: http://localhost:8501
+
+## 후속 조치 항목
+- OpenAI Whisper 마이그레이션 검증
+- 메모리 사용량 최적화
+- 에러 처리 강화
+- UI/UX 개선
+- 참고 문서 및 RAG 기능 개발
+
+## 관련 문서
+- [README.md](/KR_AI_VIDEO_CONVERTER/README.md)
+- [history.md](/KR_AI_VIDEO_CONVERTER/history.md)
+- [FOLLOW-UP_ACTIONS.md](/KR_AI_VIDEO_CONVERTER/FOLLOW-UP_ACTIONS.md) 

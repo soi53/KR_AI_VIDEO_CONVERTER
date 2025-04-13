@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     build-essential \
     git \
+    cmake \
+    libopenblas-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,6 +29,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY ./app/requirements.txt /app/
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
+
+# Whisper API를 통해 사용하므로 로컬 모델 다운로드는 필요 없음
+# 필요시 아래 주석을 해제하여 특정 모델 미리 다운로드 가능
+# RUN python -c "import whisper; whisper.load_model('large-v3')"
 
 # 애플리케이션 코드 복사
 COPY ./app /app/

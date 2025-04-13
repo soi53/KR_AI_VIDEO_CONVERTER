@@ -50,4 +50,10 @@ logs/
 .idea/
 .vscode/
 *.swp
-*.swo 
+*.swo "# 대용량 파일 제외" 
+"*.mp4" 
+"*.avi" 
+"*.mov" 
+"*.wav" 
+"*.mpeg" 
+"data/*" 

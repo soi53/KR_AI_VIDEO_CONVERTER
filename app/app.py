@@ -7,7 +7,8 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import streamlit as st
+import torch  # Import PyTorch first
+import streamlit as st  # Then Streamlit
 from loguru import logger
 
 # 모듈 경로 추가
@@ -22,6 +23,8 @@ from config.settings import (
     LANGUAGE_NAMES,
     MAX_UPLOAD_SIZE_MB,
     SUPPORTED_LANGUAGES,
+    WHISPER_MODEL_OPTIONS,
+    WHISPER_MODEL_SIZE,
 )
 from schemas import SubtitleFile, SubtitleSegment, VideoInfo
 from utils.file_handler import clean_temporary_files, save_uploaded_file, validate_video_file
@@ -338,7 +341,68 @@ def show_extract_page():
 
 def extract_from_video(video_path: str, video_info: VideoInfo):
     """동영상에서 자막을 자동으로 추출합니다."""
-    st.info("whisperX를 사용하여 동영상에서 자막을 자동으로 추출합니다.")
+    st.info("OpenAI Whisper API를 사용하여 동영상에서 자막을 자동으로 추출합니다.")
+    
+    # 모델 설정 UI
+    with st.expander("Whisper API 설정", expanded=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # 모델 크기 선택
+            try:
+                default_index = list(WHISPER_MODEL_OPTIONS.keys()).index(WHISPER_MODEL_SIZE)
+            except ValueError:
+                # WHISPER_MODEL_SIZE가 목록에 없는 경우 기본값(첫 번째 항목)을 사용
+                if 'large-v3' in WHISPER_MODEL_OPTIONS:
+                    default_index = list(WHISPER_MODEL_OPTIONS.keys()).index('large-v3')
+                else:
+                    default_index = 0
+                st.warning(f"설정된 모델 '{WHISPER_MODEL_SIZE}'는 사용할 수 없습니다. 기본 모델을 사용합니다.")
+                
+            model_size = st.selectbox(
+                "모델 크기",
+                list(WHISPER_MODEL_OPTIONS.keys()),
+                index=default_index,
+                format_func=lambda x: f"{x} - {WHISPER_MODEL_OPTIONS[x]}"
+            )
+            
+            # 언어 선택
+            language = st.selectbox(
+                "언어",
+                ["자동 감지", "ko", "en", "ja", "zh", "de"],
+                format_func=lambda x: "자동 감지" if x == "자동 감지" else f"{x} - {LANGUAGE_NAMES.get(x, x)}"
+            )
+            
+            # 언어 값 변환
+            if language == "자동 감지":
+                language = None
+        
+        with col2:
+            # 고급 설정
+            temperature = st.slider(
+                "Temperature",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.0,
+                step=0.1,
+                help="높을수록 다양한 결과, 낮을수록 결정적인 결과"
+            )
+            
+            timestamp_granularity = st.radio(
+                "타임스탬프 정밀도",
+                ["segment", "word"],
+                index=0,
+                format_func=lambda x: "세그먼트 단위" if x == "segment" else "단어 단위",
+                help="단어 단위는 더 정밀하지만 처리 시간이 더 길어집니다"
+            )
+        
+        # 초기 프롬프트 설정
+        initial_prompt = st.text_area(
+            "초기 프롬프트 (선택 사항)",
+            placeholder="특정 형식이나 도메인에 맞는 힌트를 제공할 수 있습니다",
+            help="Whisper가 인식을 시작할 때 제공하는 컨텍스트입니다",
+            max_chars=500
+        )
     
     # 추출 버튼
     if st.button("자막 추출 시작", key="extract_button"):
@@ -347,7 +411,14 @@ def extract_from_video(video_path: str, video_info: VideoInfo):
         with st.spinner("자막 추출 중... (이 작업은 몇 분 정도 소요될 수 있습니다)"):
             try:
                 # 자막 추출
-                subtitle_path = extract_subtitles(video_path)
+                subtitle_path = extract_subtitles(
+                    video_path=video_path,
+                    model_size=model_size,
+                    language=language,
+                    temperature=temperature,
+                    initial_prompt=initial_prompt if initial_prompt else None,
+                    timestamp_granularity=timestamp_granularity
+                )
                 
                 # 추출된 자막 파싱
                 segments = parse_srt_file(subtitle_path)
@@ -356,7 +427,7 @@ def extract_from_video(video_path: str, video_info: VideoInfo):
                 subtitle_file = SubtitleFile(
                     file_id=video_info.id,
                     segments=segments,
-                    source_language=DEFAULT_SOURCE_LANGUAGE,
+                    source_language=language or DEFAULT_SOURCE_LANGUAGE,
                     source_video_path=video_path,
                     file_path=subtitle_path
                 )

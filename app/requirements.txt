@@ -1,4 +1,4 @@
-# 웹 애플리케이션 프레임워크
+# 애플리케이션 프레임워크
 streamlit==1.32.2
 
 # 환경 변수 관리
@@ -10,7 +10,7 @@ ffmpeg-python==0.2.0
 # OpenAI API 클라이언트
 openai==1.16.2
 
-# Docker SDK (whisperX 컨테이너 제어용)
+# Docker SDK (Whisper 컨테이너 제어용)
 docker==7.0.0
 
 # TTS (텍스트 음성 변환)

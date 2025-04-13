@@ -78,6 +78,25 @@ def trim_video(
             logger.debug(f"자르기 범위가 전체 동영상이므로 자르기를 수행하지 않습니다: {video_path}")
             return str(video_path)
         
+        # 입력 파일의 오디오 스트림 확인
+        try:
+            probe = ffmpeg.probe(str(video_path))
+            audio_stream = next((s for s in probe['streams'] if s['codec_type'] == 'audio'), None)
+            video_stream = next((s for s in probe['streams'] if s['codec_type'] == 'video'), None)
+            
+            if audio_stream is None:
+                logger.warning(f"입력 파일에 오디오 스트림이 없습니다: {video_path}")
+            else:
+                logger.debug(f"입력 파일에서 오디오 스트림 발견: {audio_stream.get('codec_name', 'N/A')}, {video_path}")
+                
+            if video_stream is None:
+                logger.error(f"입력 파일에 비디오 스트림이 없습니다: {video_path}")
+                raise ValueError("입력 파일에 비디오 스트림이 없습니다")
+                
+        except ffmpeg.Error as e:
+            logger.error(f"입력 파일 정보 확인 중 오류 (trim_video): {e.stderr.decode() if hasattr(e, 'stderr') else str(e)}")
+            raise ValueError("입력 비디오 파일 정보를 읽을 수 없습니다.")
+        
         # FFmpeg 명령어 구성
         input_stream = ffmpeg.input(str(video_path))
         
@@ -87,16 +106,44 @@ def trim_video(
         if end_ms is not None:
             # 종료 시간이 지정된 경우 재생 시간을 계산
             duration_seconds = (end_ms - start_ms) / 1000
-            output_stream = input_stream.trim(start=start_seconds, duration=duration_seconds)
+            trimmed_stream = input_stream.trim(start=start_seconds, duration=duration_seconds)
         else:
             # 종료 시간이 지정되지 않은 경우 시작 시간만 설정
-            output_stream = input_stream.trim(start=start_seconds)
+            trimmed_stream = input_stream.trim(start=start_seconds)
         
-        # 비디오 스트림 설정
-        output_stream = output_stream.setpts('PTS-STARTPTS')
+        # 비디오 스트림 타임스탬프 조정
+        trimmed_stream = trimmed_stream.setpts('PTS-STARTPTS')
         
         # 출력 파일로 저장
-        output_stream = ffmpeg.output(output_stream, str(output_path), c='copy')
+        output_args = {
+            'c:v': 'libx264',      # 비디오 코덱
+            'crf': '23',           # 비디오 품질 설정 (낮을수록 고품질)
+            'preset': 'medium'     # 인코딩 속도/품질 균형
+        }
+        
+        # 오디오 스트림이 있는 경우에만 오디오 설정 추가
+        if audio_stream is not None:
+            output_args.update({
+                'c:a': 'aac',      # 오디오 코덱
+                'b:a': '128k'      # 오디오 비트레이트
+            })
+            
+            # 명시적 스트림 매핑 (오디오 스트림이 있는 경우)
+            output_stream = ffmpeg.output(
+                trimmed_stream,
+                str(output_path),
+                **output_args
+            ).global_args('-map', '0:v:0', '-map', '0:a?')
+        else:
+            # 오디오 스트림이 없는 경우
+            output_stream = ffmpeg.output(
+                trimmed_stream,
+                str(output_path),
+                **output_args
+            ).global_args('-map', '0:v:0')
+        
+        # 실제 생성될 FFmpeg 명령어 로깅
+        logger.debug(f"FFmpeg trim command: {' '.join(output_stream.get_args())}")
         
         # 실행 (덮어쓰기 허용)
         ffmpeg.run(output_stream, overwrite_output=True, quiet=True)
@@ -163,13 +210,19 @@ def combine_video(
         # 비디오와 오디오 스트림 설정
         video_stream = input_video.video
         
+        # 최종 파일 경로 결정
+        final_output_path = temp_path if subtitle_path else output_path
+        
         # 오디오 결합 (원본 오디오 대체)
         output = ffmpeg.output(
             video_stream,
             input_audio,
-            str(temp_path if subtitle_path else output_path),
-            c='copy',
-            map_metadata=0
+            str(final_output_path),
+            **{
+                'c:v': 'libx264',  # 비디오 코덱
+                'c:a': 'aac',      # 오디오 코덱
+                'map_metadata': '0'
+            }
         )
         
         # 실행 (덮어쓰기 허용)
@@ -187,8 +240,11 @@ def combine_video(
                 input_with_audio,
                 str(output_path),
                 vf=f"subtitles={subtitle_path}:force_style='FontName={font_path},FontSize=24'",
-                c='copy',
-                map_metadata=0
+                **{
+                    'c:v': 'libx264',  # 비디오 코덱
+                    'c:a': 'aac',      # 오디오 코덱
+                    'map_metadata': '0'
+                }
             )
             
             # 실행 (덮어쓰기 허용)

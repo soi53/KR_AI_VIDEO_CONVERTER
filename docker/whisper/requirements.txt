@@ -1,0 +1,15 @@
+# STT (Speech-to-Text)
+openai-whisper==20231117
+
+# API 서버
+fastapi==0.109.2
+uvicorn==0.27.1
+
+# 유틸리티
+numpy==1.24.3
+pydantic==2.5.2
+requests==2.31.0
+python-multipart==0.0.9
+
+# 로깅
+loguru==0.7.2 

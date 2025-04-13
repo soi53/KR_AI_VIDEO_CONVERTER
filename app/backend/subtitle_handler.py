@@ -9,15 +9,15 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
-import docker
 import requests
 from loguru import logger
 
 from config.settings import (
     PROCESSED_DIR,
     UPLOAD_DIR,
-    WHISPERX_API_URL,
-    WHISPERX_TIMEOUT,
+    WHISPER_API_URL,
+    WHISPER_MODEL_SIZE,
+    WHISPER_TEMPERATURE,
 )
 from schemas import SubtitleFile, SubtitleSegment
 from utils.file_handler import generate_unique_id
@@ -26,14 +26,24 @@ from utils.time_converter import ms_to_srt_time, srt_time_to_ms
 
 def extract_subtitles(
     video_path: Union[str, Path],
-    output_dir: Path = PROCESSED_DIR
+    output_dir: Path = PROCESSED_DIR,
+    model_size: Optional[str] = None,
+    language: str = "ko",
+    temperature: Optional[float] = None,
+    initial_prompt: Optional[str] = None,
+    timestamp_granularity: str = "segment"
 ) -> str:
     """
-    whisperX를 사용하여 비디오에서 자막을 추출합니다.
+    OpenAI Whisper API를 호출하여 비디오에서 자막을 추출합니다.
     
     Args:
         video_path: 입력 비디오 파일 경로
         output_dir: 출력 디렉토리 경로
+        model_size: Whisper 모델 크기 (tiny, base, small, medium, large-v3)
+        language: 자막 언어 코드 (기본값: ko)
+        temperature: 샘플링 온도 (0.0 ~ 1.0, 낮을수록 결정적)
+        initial_prompt: 초기 프롬프트 텍스트
+        timestamp_granularity: 타임스탬프 정밀도 ("segment" 또는 "word")
         
     Returns:
         str: 생성된 자막 파일 경로 (SRT 형식)
@@ -48,57 +58,66 @@ def extract_subtitles(
         # 출력 디렉토리 확인
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # 원본 파일 ID 추출
-        file_id = video_path.stem.split("_")[-1]
+        # /data 볼륨 기준 상대 경로
+        # 도커 볼륨 마운트 구조: ./data:/data
+        relative_video_path = str(video_path)
+        if relative_video_path.startswith('/data/'):
+            relative_video_path = relative_video_path[6:]  # '/data/' 제거
         
-        # 출력 파일 경로 설정
-        output_path = output_dir / f"subtitle_{file_id}.srt"
+        logger.debug(f"OpenAI Whisper API 호출 준비: 비디오 경로={relative_video_path}")
         
-        # whisperX API 호출
-        logger.debug(f"whisperX API 호출: {WHISPERX_API_URL}")
+        # API 엔드포인트 호출
+        api_url = f"{WHISPER_API_URL}/api/extract_subtitles"
         
-        # 보내야 할 파일 준비
-        with open(video_path, "rb") as f:
-            files = {
-                "audio_file": (video_path.name, f.read(), "video/mp4"),
-            }
+        # 폼 데이터 구성
+        payload = {
+            'video_path': relative_video_path,
+            'language': language
+        }
+        
+        # 선택적 매개변수 추가
+        if model_size:
+            payload['model_size'] = model_size
+        
+        if temperature is not None:
+            payload['temperature'] = str(temperature)
+        elif WHISPER_TEMPERATURE is not None:
+            payload['temperature'] = str(WHISPER_TEMPERATURE)
             
-            # API 파라미터 설정
-            data = {
-                "task": "transcribe",
-                "language": "ko",  # 한국어
-                "output": "srt",
-            }
+        if initial_prompt:
+            payload['initial_prompt'] = initial_prompt
             
-            # API 호출
-            response = requests.post(
-                f"{WHISPERX_API_URL}/asr",
-                files=files,
-                data=data,
-                timeout=WHISPERX_TIMEOUT,
-            )
+        if timestamp_granularity:
+            payload['timestamp_granularity'] = timestamp_granularity
         
-        # 응답 확인
+        logger.debug(f"OpenAI Whisper API 호출: {api_url}, 매개변수: {payload}")
+        response = requests.post(api_url, data=payload)
+        
+        # API 응답 처리
         if response.status_code != 200:
-            logger.error(f"whisperX API 오류: {response.status_code} - {response.text}")
-            raise ValueError(f"자막 추출 중 API 오류: {response.status_code}")
+            error_msg = f"OpenAI Whisper API 호출 실패 (상태 코드: {response.status_code}): {response.text}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
-        # 응답에서 SRT 파일 내용 추출
+        # JSON 응답 파싱
         result = response.json()
-        if "srt" not in result:
-            logger.error(f"whisperX API 응답 오류: {result}")
-            raise ValueError("자막 추출 결과에 SRT 데이터가 없습니다.")
         
-        # SRT 파일 저장
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(result["srt"])
+        if result["status"] != "success":
+            error_msg = f"OpenAI Whisper API 처리 오류: {result.get('error', '알 수 없는 오류')}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
-        logger.debug(f"자막 추출 완료: {output_path}")
-        return str(output_path)
+        # API가 반환한 자막 파일 경로 (상대 경로)
+        subtitle_path = result.get("subtitle_path")
+        if not subtitle_path:
+            raise ValueError("API 응답에 자막 파일 경로가 포함되지 않았습니다")
+        
+        # 전체 경로로 변환
+        full_subtitle_path = Path("/data") / subtitle_path
+        
+        logger.debug(f"자막 추출 완료: {full_subtitle_path}")
+        return str(full_subtitle_path)
     
-    except requests.RequestException as e:
-        logger.error(f"whisperX API 통신 오류: {str(e)}")
-        raise ValueError(f"자막 추출 중 API 통신 오류: {str(e)}")
     except Exception as e:
         logger.error(f"자막 추출 중 예상치 못한 오류: {str(e)}")
         raise ValueError(f"자막 처리 중 오류가 발생했습니다: {str(e)}")

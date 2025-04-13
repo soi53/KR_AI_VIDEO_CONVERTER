@@ -1,43 +1,67 @@
 version: '3.8'
 
 services:
+  whisper:
+    build:
+      context: .
+      dockerfile: ./docker/whisper/Dockerfile
+    container_name: video_translator_whisper
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    environment:
+      - WHISPER_MODEL_SIZE=large-v3
+      - WHISPER_BEAM_SIZE=5
+      - WHISPER_TEMPERATURE=0.0
+      - WHISPER_RESPONSE_FORMAT=json
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   app:
     build:
       context: .
       dockerfile: ./docker/app/Dockerfile
     container_name: video_translator_app
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./app:/app
     ports:
       - "8501:8501"
-    volumes:
-      - ./app:/app
-      - ./data:/data
-    env_file:
-      - .env
-    restart: unless-stopped
-    networks:
-      - video_translator_network
     depends_on:
-      - whisperx
-
-  whisperx:
-    image: onerahmet/openai-whisper-asr-webservice:latest-gpu
-    container_name: whisperx_service
+      - whisper
     environment:
-      - ASR_MODEL=large-v3
-      - ASR_ENGINE=whisperx
-    volumes:
-      - ./data:/data
-    networks:
-      - video_translator_network
-    restart: unless-stopped
-    # 주의: GPU 사용을 위한 추가 설정
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+      - WHISPER_API_URL=http://whisper:8000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - DEFAULT_SOURCE_LANGUAGE=${DEFAULT_SOURCE_LANGUAGE:-ko}
+      - SUPPORTED_LANGUAGES=${SUPPORTED_LANGUAGES:-en,ja,zh,de,id}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-2000}
+      - ALLOWED_VIDEO_FORMATS=${ALLOWED_VIDEO_FORMATS:-mp4,avi}
+      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-large-v3}
+      - WHISPER_BEAM_SIZE=${WHISPER_BEAM_SIZE:-5}
+      - WHISPER_TEMPERATURE=${WHISPER_TEMPERATURE:-0.0}
+      - WHISPER_TIMESTAMP_GRANULARITY=${WHISPER_TIMESTAMP_GRANULARITY:-segment}
+      - UPLOAD_DIR=${UPLOAD_DIR:-/data/uploads}
+      - PROCESSED_DIR=${PROCESSED_DIR:-/data/processed}
+      - RESULTS_DIR=${RESULTS_DIR:-/data/results}
+      - DEBUG=${DEBUG:-false}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  data:
+    driver: local
 
 networks:
   video_translator_network:

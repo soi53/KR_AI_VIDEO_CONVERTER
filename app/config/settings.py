@@ -17,7 +17,7 @@ DATA_DIR = Path("/data")
 
 # OpenAI API 설정
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 
 # 언어 설정
 DEFAULT_SOURCE_LANGUAGE = os.getenv("DEFAULT_SOURCE_LANGUAGE", "ko")
@@ -42,9 +42,23 @@ UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/data/uploads"))
 PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", "/data/processed"))
 RESULTS_DIR = Path(os.getenv("RESULTS_DIR", "/data/results"))
 
-# whisperX API 설정
-WHISPERX_API_URL = os.getenv("WHISPERX_API_URL", "http://whisperx:9000")
-WHISPERX_TIMEOUT = int(os.getenv("WHISPERX_TIMEOUT", "300"))
+# Whisper 설정
+WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "large-v3")
+WHISPER_BEAM_SIZE = int(os.getenv("WHISPER_BEAM_SIZE", "5"))
+WHISPER_TEMPERATURE = float(os.getenv("WHISPER_TEMPERATURE", "0.0"))
+WHISPER_TIMESTAMP_GRANULARITY = os.getenv("WHISPER_TIMESTAMP_GRANULARITY", "segment")
+
+# Whisper 모델 옵션
+WHISPER_MODEL_OPTIONS = {
+    "tiny": "초소형 (가장 빠름, 낮은 정확도)",
+    "base": "기본형 (빠름, 기본 정확도)",
+    "small": "소형 (중간 속도, 좋은 정확도)",
+    "medium": "중형 (느림, 높은 정확도)",
+    "large-v3": "대형 (가장 느림, 최고 정확도)"
+}
+
+# Whisper API 설정
+WHISPER_API_URL = os.getenv("WHISPER_API_URL", "http://whisper:8000")
 
 # TTS 모델 설정
 TTS_MODEL = os.getenv("TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
@@ -64,5 +78,5 @@ if not OPENAI_API_KEY and not DEBUG:
 # API 키와 같은 민감한 정보는 로깅하지 않도록 주의
 logger.debug(f"애플리케이션 설정이 로드되었습니다. 디버그 모드: {DEBUG}")
 logger.debug(f"지원 언어: {', '.join(SUPPORTED_LANGUAGES)}")
-logger.debug(f"whisperX API URL: {WHISPERX_API_URL}")
+logger.debug(f"Whisper 모델: {WHISPER_MODEL_SIZE}")
 logger.debug(f"TTS 모델: {TTS_MODEL}") 
